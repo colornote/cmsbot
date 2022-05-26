@@ -11,9 +11,8 @@ import (
 	"math/rand"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
-
-	// "regexp"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/corpix/uarand"
@@ -22,10 +21,13 @@ import (
 )
 
 type BlogArticle struct {
-	Title    string `json:"title"`
-	Links    string `json:"links"`
-	Contents string `json:"contents"`
-	// AuthorName string `gorm:"authorName"`
+	Title       string    `json:"title"`
+	Links       string    `json:"links"`
+	Contents    string    `json:"contents"`
+	Description string    `json:"description"`
+	Keywords    string    `json:"keywords"`
+	AuthorName  string    `gorm:"column:authorName"`
+	CreatedAt   time.Time `gorm:"column:createdAt"`
 }
 
 func main() {
@@ -55,16 +57,18 @@ func main() {
 			panic(err)
 		}
 
-		Parser(f)
+		list := strings.Split(file.Name(), ".")
 
-		fmt.Println(file.Name())
+		Parser(f, list[0])
+
+		// fmt.Println(file.Name())
 	}
 
 	// Parser()
 	fmt.Println("procesing done")
 }
 
-func Parser(file []byte) {
+func Parser(file []byte, keyword string) {
 
 	doc, _ := goquery.NewDocumentFromReader(bytes.NewReader(file))
 
@@ -73,21 +77,32 @@ func Parser(file []byte) {
 		link, _ := s.Attr("data-link")
 		title, _ := s.Attr("data-title")
 
+		var cn int64
+		database.DB.Table("blog_article").Where("title = ?", title).Count(&cn)
+
+		if cn > 0 {
+			println(title, "已经在库~~~")
+			return
+		}
+
 		content := Fetch(link)
 
 		if len(content) == 0 {
 			return
 		}
 
-		var bl BlogArticle
-		database.DB.Table("blog_article").Where("title = ?", title).Assign(BlogArticle{
-			Title:    title,
-			Links:    GenLink(),
-			Contents: content,
-			// AuthorName: "",
-		}).FirstOrCreate(&bl)
+		bl := BlogArticle{
+			Title:       title,
+			Links:       GenLink(),
+			Contents:    content,
+			Keywords:    keyword,
+			Description: "",
+			AuthorName:  "fans08专员",
+			CreatedAt:   time.Now(),
+		}
+		database.DB.Table("blog_article").Where("title = ?", title).Assign().Create(&bl)
 
-		println(i, link, title)
+		println(i, link, title, "处理完成")
 
 	})
 
@@ -95,14 +110,14 @@ func Parser(file []byte) {
 
 func GenLink() string {
 	rand.Seed(time.Now().UnixNano())
-	collect := []rune("abcedghijklnmopqrstuvwxyz-ABCEDGHIJKLNMOPQRSTUVWXYZ")
-	ret := make([]rune, 1)
-	for i := 15; i > 0; i-- {
+	const collect = "abcedghijklnmopqrstuvwxyz-ABCEDGHIJKLNMOPQRSTUVWXYZ--"
+	ret := make([]byte, 15)
+	for i := range ret {
 		index := rand.Intn(len(collect))
-		ret = append(ret, collect[index])
+		ret[i] = collect[index]
 	}
 
-	return fmt.Sprintf("%s.html", string(ret[:]))
+	return fmt.Sprintf("%s.html", ret)
 }
 
 func Fetch(url string) string {
@@ -111,7 +126,6 @@ func Fetch(url string) string {
 		"accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
 		"accept-language":           "zh-CN,zh;q=0.9",
 		"cache-control":             "max-age=0",
-		"if-modified-since":         "Sat, 14 May 2022 03:21:02 +0800",
 		"sec-fetch-dest":            "document",
 		"sec-fetch-mode":            "navigate",
 		"sec-fetch-site":            "none",
@@ -140,6 +154,8 @@ func Fetch(url string) string {
 		if len(div.Text()) > 0 {
 			strip_tags := striptags.NewStripTags()
 			h, _ := div.Html()
+			strip_tags.TrimSpace = true
+
 			html_clean, err := strip_tags.Fetch(h) // 返回过滤后的 HTML 字符串和错误信息
 			if err != nil {
 				fmt.Printf("clean err: %v", err)

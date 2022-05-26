@@ -2,7 +2,9 @@ package striptags
 
 import (
 	"bytes"
+
 	"golang.org/x/net/html"
+
 	//"code.google.com/p/go.net/html"
 	"io"
 	"reflect"
@@ -62,7 +64,8 @@ func (this *StripTags) Init() {
 				"href": func(v string) bool {
 					// if return true,this attr will be deleted
 					// false will be kept
-					return strings.HasPrefix(v, "javascript:")
+					// return strings.HasPrefix(v, "javascript:")
+					return true
 				},
 			},
 			"abbr":    true,
