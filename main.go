@@ -97,7 +97,7 @@ func Parser(file []byte, keyword string) {
 			Contents:    content,
 			Keywords:    keyword,
 			Description: "",
-			AuthorName:  "fans08专员",
+			AuthorName:  "",
 			CreatedAt:   time.Now(),
 		}
 		database.DB.Table("blog_article").Where("title = ?", title).Assign().Create(&bl)

@@ -118,7 +118,7 @@ func (this *StripTags) Init() {
 			"u":     true,
 			"ul":    true,
 			"video": true,
-			"img":   true,
+			"img":   false,
 		}
 	}
 
